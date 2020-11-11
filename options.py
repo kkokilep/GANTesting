@@ -58,7 +58,7 @@ class Options():
         self.parser.add_argument('--resume', default='', help="path to checkpoints (to continue training)")
         self.parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')
         self.parser.add_argument('--iter', type=int, default=0, help='Start from iteration i')
-        self.parser.add_argument('--epochs', type=int, default=15, help='number of epochs to train for')
+        self.parser.add_argument('--niter', type=int, default=15, help='number of epochs to train for')
         self.parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
         self.parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate for adam')
         self.parser.add_argument('--w_adv', type=float, default=1, help='Adversarial loss weight')

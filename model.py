@@ -193,9 +193,9 @@ class BaseModel():
                 self.gt_labels[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0)] = self.gt.reshape(
                     error.size(0))
                 self.latent_i[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0), :] = latent_i.reshape(
-                    error.size(0), self.opt.nz)
+                    error.size(0), self.opt.latent_size)
                 self.latent_o[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0), :] = latent_o.reshape(
-                    error.size(0), self.opt.nz)
+                    error.size(0), self.opt.latent_size)
 
                 self.times.append(time_o - time_i)
 
@@ -217,6 +217,7 @@ class BaseModel():
             # auc, eer = roc(self.gt_labels, self.an_scores)
             auc = evaluate(self.gt_labels, self.an_scores, metric=self.opt.metric)
             performance = OrderedDict([('Avg Run Time (ms/batch)', self.times), (self.opt.metric, auc)])
+            print(performance)
 
             return performance
 
