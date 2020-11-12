@@ -10,6 +10,7 @@ def load_data(opt):
     splits = ['train','test']
     drop_last_batch = {'train': True,  'test': False}
     shuffle = {'train': True, 'test': True}
+    b_size = {'train':opt.batchsize,'test': 1}
     transform = transforms.Compose([transforms.Resize(opt.im_size),
                                     transforms.CenterCrop(opt.im_size),
                                     transforms.ToTensor(),
@@ -17,7 +18,7 @@ def load_data(opt):
     dataset = {x: ImageFolder(os.path.join(opt.dataroot, x), transform) for x in splits}
 
     dataloader = {x: torch.utils.data.DataLoader(dataset=dataset[x],
-                                                 batch_size=opt.batchsize,
+                                                 batch_size=b_size[x],
                                                  shuffle=shuffle[x],
                                                  num_workers=int(opt.workers),
                                                  drop_last=drop_last_batch[x],

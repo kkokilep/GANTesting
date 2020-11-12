@@ -29,7 +29,7 @@ class Options():
         self.parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
         self.parser.add_argument('--droplast', action='store_true', default=True, help='Drop last batch size.')
         self.parser.add_argument('--im_size', type=int, default=32, help='input image size.')
-        self.parser.add_argument('--num_channels', type=int, default=1, help='input image channels')
+        self.parser.add_argument('--num_channels', type=int, default=3, help='input image channels')
         self.parser.add_argument('--latent_size', type=int, default=100, help='size of the latent z vector')
         self.parser.add_argument('--ngf', type=int, default=64)
         self.parser.add_argument('--ndf', type=int, default=64)
@@ -64,6 +64,7 @@ class Options():
         self.parser.add_argument('--w_adv', type=float, default=1, help='Adversarial loss weight')
         self.parser.add_argument('--w_con', type=float, default=50, help='Reconstruction loss weight')
         self.parser.add_argument('--w_enc', type=float, default=1, help='Encoder loss weight.')
+        self.parser.add_argument('--w_grad', type=float, default=1, help='Encoder loss weight.')
         self.isTrain = True
         self.opt = None
 

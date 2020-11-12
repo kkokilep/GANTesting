@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-from torchsummary import summary
 import options
 import numpy as np
 from options import Options

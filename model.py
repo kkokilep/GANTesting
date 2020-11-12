@@ -13,7 +13,9 @@ import torchvision.utils as vutils
 from networks import NetG, NetD, weights_init
 from loss_fcns import l2_loss
 from evaluate import evaluate
+import utils
 
+import torch.nn.functional as func
 class BaseModel():
     def __init__(self, opt, dataloader):
         self.seed(opt.manualseed)
@@ -185,6 +187,15 @@ class BaseModel():
                 self.set_input(data)
                 self.fake, latent_i, latent_o = self.netg(self.input)
 
+                recon_loss = func.mse_loss(self.input,self.fake)
+                print(recon_loss.shape)
+                recon_loss.backward()
+                self.grad_loss = 0
+                for j in range(4):
+                    target_grad = self.netg.module.decoder[3 * j].weight.grad
+                    self.grad_loss += 1 * func.cosine_similarity(target_grad.view(-1, 1), self.ref_grad[i].avg.view(-1, 1), dim=0)
+
+                self.grad_loss = self.grad_loss/4
                 error = torch.mean(torch.pow((latent_i - latent_o), 2), dim=1)
                 time_o = time.time()
 
@@ -236,14 +247,18 @@ class Ganomaly(BaseModel):
         self.epoch = 0
         self.times = []
         self.total_steps = 0
-
         ##
         # Create and initialize networks.
         self.netg = NetG(self.opt).to(self.device)
         self.netd = NetD(self.opt).to(self.device)
         self.netg.apply(weights_init)
         self.netd.apply(weights_init)
-
+        # Initialize Gradient Management
+        self.ref_grad = []
+        for i in range(4):
+            layer_grad = utils.AverageMeter()
+            layer_grad.avg = torch.zeros(self.netg.module.decoder[3 * i].weight.shape).to(self.device)
+            self.ref_grad.append(layer_grad)
         ##
         if self.opt.resume != '':
             print("\nLoading pre-trained networks.")
@@ -293,9 +308,30 @@ class Ganomaly(BaseModel):
         self.err_g_adv = self.l_adv(self.netd(self.input)[1], self.netd(self.fake)[1])
         self.err_g_con = self.l_con(self.fake, self.input)
         self.err_g_enc = self.l_enc(self.latent_o, self.latent_i)
+        self.grad_loss = 0
+
+        # Gradient Computation
+        recon_loss = func.mse_loss(self.fake,self.input)
+        for i in range(4):
+            wrt = self.netg.module.decoder[3 * i].weight
+            target_grad = torch.autograd.grad(recon_loss, wrt, create_graph=True, retain_graph=True)[0]
+            self.grad_loss += -1 * func.cosine_similarity(target_grad.view(-1, 1),
+                                                     self.ref_grad[i].avg.view(-1, 1), dim=0)
+
+        if self.ref_grad[0].count == 0:
+            self.grad_loss = torch.FloatTensor([0.0]).to(self.device)
+        else:
+            self.grad_loss = self.grad_loss / 4
+
         self.err_g = self.err_g_adv * self.opt.w_adv + \
                      self.err_g_con * self.opt.w_con + \
-                     self.err_g_enc * self.opt.w_enc
+                     self.err_g_enc * self.opt.w_enc + self.grad_loss * self.opt.w_grad
+
+        # Update the reference gradient
+        for i in range(4):
+            self.ref_grad[i].update(self.netg.module.decoder[3 * i].weight.grad, 1)
+
+
         self.err_g.backward(retain_graph=True)
 
     ##
