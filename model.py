@@ -186,7 +186,7 @@ class BaseModel():
                 time_i = time.time()
                 self.set_input(data)
                 self.fake, latent_i, latent_o = self.netg(self.input)
-
+                '''
                 recon_loss = func.mse_loss(self.input,self.fake)
                 print(recon_loss.shape)
                 recon_loss.backward()
@@ -196,6 +196,7 @@ class BaseModel():
                     self.grad_loss += 1 * func.cosine_similarity(target_grad.view(-1, 1), self.ref_grad[i].avg.view(-1, 1), dim=0)
 
                 self.grad_loss = self.grad_loss/4
+                '''
                 error = torch.mean(torch.pow((latent_i - latent_o), 2), dim=1)
                 time_o = time.time()
 
