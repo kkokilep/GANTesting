@@ -22,6 +22,7 @@ def train():
     ##
     # TRAIN MODEL
     model.train()
+    model.test2()
 
 if __name__ == '__main__':
     train()

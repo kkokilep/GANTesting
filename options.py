@@ -24,8 +24,9 @@ class Options():
         ##
         # Base
         self.parser.add_argument('--dataset', default='cifar10', help='folder | cifar10 | mnist ')
-        self.parser.add_argument('--dataroot', default='', help='path to dataset')
+        self.parser.add_argument('--dataroot', default='/data/kiran/OCT_Dataset', help='path to dataset')
         self.parser.add_argument('--batchsize', type=int, default=64, help='input batch size')
+        self.parser.add_argument('--batchsize_test', type=int, default=1, help='input batch size')
         self.parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
         self.parser.add_argument('--droplast', action='store_true', default=True, help='Drop last batch size.')
         self.parser.add_argument('--im_size', type=int, default=32, help='input image size.')
@@ -64,7 +65,7 @@ class Options():
         self.parser.add_argument('--w_adv', type=float, default=1, help='Adversarial loss weight')
         self.parser.add_argument('--w_con', type=float, default=50, help='Reconstruction loss weight')
         self.parser.add_argument('--w_enc', type=float, default=1, help='Encoder loss weight.')
-        self.parser.add_argument('--w_grad', type=float, default=1, help='Encoder loss weight.')
+        self.parser.add_argument('--w_grad', type=float, default=.1, help='Encoder loss weight.')
         self.isTrain = True
         self.opt = None
 

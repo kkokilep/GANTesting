@@ -29,9 +29,10 @@ def roc(labels, scores, saveto=None):
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
-
-    labels = labels.cpu()
-    scores = scores.cpu()
+    
+    #Removed .cpu()
+    labels = labels
+    scores = scores
 
     # True/False Positive Rates.
     fpr, tpr, _ = roc_curve(labels, scores)

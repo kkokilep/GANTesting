@@ -138,13 +138,80 @@ class BaseModel():
         print(">> Training model %s." % self.name)
         for self.epoch in range(self.opt.iter, self.opt.niter):
             # Train for one epoch
+            self.netg.train()
             self.train_one_epoch()
-            res = self.test()
+            '''
+            res = self.test2()
             if res[self.opt.metric] > best_auc:
                 best_auc = res[self.opt.metric]
                 self.save_weights(self.epoch)
         print(">> Training model %s.[Done]" % self.name)
+        '''
+    def test2(self):
+        
+        self.netg.eval()
+        self.opt.phase = 'test'
 
+            # Create big error tensor for the test set.
+        self.an_scores = torch.zeros(size=(len(self.dataloader['test'].dataset),), dtype=torch.float32,
+                                         device=self.device)
+        self.gt_labels = torch.zeros(size=(len(self.dataloader['test'].dataset),), dtype=torch.long,
+                                         device=self.device)
+        self.latent_i = torch.zeros(size=(len(self.dataloader['test'].dataset), self.opt.latent_size), dtype=torch.float32,
+                                        device=self.device)
+        self.latent_o = torch.zeros(size=(len(self.dataloader['test'].dataset), self.opt.latent_size), dtype=torch.float32,
+                                        device=self.device)
+        self.times = []
+        self.total_steps = 0
+        epoch_iter = 0
+        for i, data in enumerate(self.dataloader['test'], 0):
+            self.total_steps += self.opt.batchsize_test
+            epoch_iter += self.opt.batchsize_test
+            time_i = time.time()
+            self.set_input(data)
+                
+            self.netg.zero_grad()
+            self.fake, latent_i, latent_o = self.netg(self.input)
+                
+            error = torch.mean(torch.pow((latent_i - latent_o), 2), dim=1)
+            #error = func.mse_loss(latent_i,latent_o)
+            #error.backward()
+            #GradCon Results
+                
+            recon_loss = func.mse_loss(self.input,self.fake)
+            recon_loss.backward()
+            self.grad_loss = 0
+            for j in range(4):
+                target_grad = self.netg.decoder.main[3 * j].weight.grad
+                self.grad_loss += -1 * func.cosine_similarity(target_grad.view(-1, 1),self.ref_grad[j].avg.view(-1, 1), dim=0)
+                
+            self.grad_loss = self.grad_loss/4
+                
+            time_o = time.time()
+            #print('Gradient: {}'.format(self.grad_loss))
+            self.an_scores[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0)] = error.reshape(
+                error.size(0)) + self.grad_loss *self.opt.w_grad
+            self.gt_labels[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0)] = self.gt.reshape(
+                error.size(0))
+            self.latent_i[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0), :] = latent_i.reshape(
+                error.size(0), self.opt.latent_size)
+            self.latent_o[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0), :] = latent_o.reshape(
+                error.size(0), self.opt.latent_size)
+
+            self.times.append(time_o - time_i)
+    # Measure inference time.
+        self.times = np.array(self.times)
+        self.times = np.mean(self.times[:100] * 1000)
+
+            # Scale error vector between [0, 1]
+        self.an_scores = (self.an_scores - torch.min(self.an_scores)) / (
+                    torch.max(self.an_scores) - torch.min(self.an_scores))
+            # auc, eer = roc(self.gt_labels, self.an_scores)
+        auc = evaluate(self.gt_labels.detach().numpy(), self.an_scores.detach().numpy(), metric=self.opt.metric)
+        performance = OrderedDict([('Avg Run Time (ms/batch)', self.times), (self.opt.metric, auc)])
+        print(performance)
+
+        return performance
     def test(self):
         """ Test GANomaly model.
         Args:
@@ -181,32 +248,37 @@ class BaseModel():
             self.total_steps = 0
             epoch_iter = 0
             for i, data in enumerate(self.dataloader['test'], 0):
-                self.total_steps += self.opt.batchsize
-                epoch_iter += self.opt.batchsize
+                self.total_steps += self.opt.batchsize_test
+                epoch_iter += self.opt.batchsize_test
                 time_i = time.time()
                 self.set_input(data)
+                
+                self.netg.zero_grad()
                 self.fake, latent_i, latent_o = self.netg(self.input)
-                '''
-                recon_loss = func.mse_loss(self.input,self.fake)
-                print(recon_loss.shape)
+                
+            
+           
+                #GradCon Results
+                
+                recon_loss = Variable(func.mse_loss(self.input,self.fake),requires_grad=True)
                 recon_loss.backward()
                 self.grad_loss = 0
                 for j in range(4):
-                    target_grad = self.netg.module.decoder[3 * j].weight.grad
-                    self.grad_loss += 1 * func.cosine_similarity(target_grad.view(-1, 1), self.ref_grad[i].avg.view(-1, 1), dim=0)
-
+                    target_grad = self.netg.decoder.main[3 * j].weight.grad
+                    self.grad_loss += -1 * func.cosine_similarity(target_grad.view(-1, 1),self.ref_grad[j].avg.view(-1, 1), dim=0)
+                
                 self.grad_loss = self.grad_loss/4
-                '''
+                
                 error = torch.mean(torch.pow((latent_i - latent_o), 2), dim=1)
                 time_o = time.time()
-
-                self.an_scores[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0)] = error.reshape(
+                #print('Error: {} Gradient: {}'.format(error,self.grad_loss))
+                self.an_scores[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0)] = error.reshape(
+                    error.size(0)) #+ self.grad_loss *self.opt.w_grad
+                self.gt_labels[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0)] = self.gt.reshape(
                     error.size(0))
-                self.gt_labels[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0)] = self.gt.reshape(
-                    error.size(0))
-                self.latent_i[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0), :] = latent_i.reshape(
+                self.latent_i[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0), :] = latent_i.reshape(
                     error.size(0), self.opt.latent_size)
-                self.latent_o[i * self.opt.batchsize: i * self.opt.batchsize + error.size(0), :] = latent_o.reshape(
+                self.latent_o[i * self.opt.batchsize_test: i * self.opt.batchsize_test + error.size(0), :] = latent_o.reshape(
                     error.size(0), self.opt.latent_size)
 
                 self.times.append(time_o - time_i)
@@ -232,6 +304,7 @@ class BaseModel():
             print(performance)
 
             return performance
+        
 
 ##
 class Ganomaly(BaseModel):
@@ -258,7 +331,7 @@ class Ganomaly(BaseModel):
         self.ref_grad = []
         for i in range(4):
             layer_grad = utils.AverageMeter()
-            layer_grad.avg = torch.zeros(self.netg.module.decoder[3 * i].weight.shape).to(self.device)
+            layer_grad.avg = torch.zeros(self.netg.decoder.main[3 * i].weight.shape).to(self.device)
             self.ref_grad.append(layer_grad)
         ##
         if self.opt.resume != '':
@@ -312,9 +385,9 @@ class Ganomaly(BaseModel):
         self.grad_loss = 0
 
         # Gradient Computation
-        recon_loss = func.mse_loss(self.fake,self.input)
+        recon_loss = func.mse_loss(self.input,self.fake)
         for i in range(4):
-            wrt = self.netg.module.decoder[3 * i].weight
+            wrt = self.netg.decoder.main[3 * i].weight
             target_grad = torch.autograd.grad(recon_loss, wrt, create_graph=True, retain_graph=True)[0]
             self.grad_loss += -1 * func.cosine_similarity(target_grad.view(-1, 1),
                                                      self.ref_grad[i].avg.view(-1, 1), dim=0)
@@ -327,13 +400,14 @@ class Ganomaly(BaseModel):
         self.err_g = self.err_g_adv * self.opt.w_adv + \
                      self.err_g_con * self.opt.w_con + \
                      self.err_g_enc * self.opt.w_enc + self.grad_loss * self.opt.w_grad
-
-        # Update the reference gradient
-        for i in range(4):
-            self.ref_grad[i].update(self.netg.module.decoder[3 * i].weight.grad, 1)
-
-
+         
         self.err_g.backward(retain_graph=True)
+        # Update the reference gradient
+        self.ref_grad_curr=[]
+        for i in range(4):
+            self.ref_grad[i].update(self.netg.decoder.main[3 * i].weight.grad, 1)
+            self.ref_grad_curr.append(self.ref_grad[i])
+            
 
     ##
     def backward_d(self):

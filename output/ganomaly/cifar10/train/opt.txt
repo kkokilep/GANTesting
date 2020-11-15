@@ -1,8 +1,9 @@
 ------------ Options -------------
 abnormal_class: car
 batchsize: 64
+batchsize_test: 1
 beta1: 0.5
-dataroot: 
+dataroot: /data/kiran/OCT_Dataset
 dataset: cifar10
 device: cpu
 display: False
@@ -10,7 +11,6 @@ display_id: 0
 display_port: 8097
 display_server: http://localhost
 droplast: True
-epochs: 15
 extralayers: 0
 gpu_ids: [0]
 im_size: 32
@@ -26,6 +26,7 @@ name: ganomaly/cifar10
 ndf: 64
 ngf: 64
 ngpu: 1
+niter: 15
 num_channels: 3
 outf: ./output
 phase: train
@@ -37,5 +38,6 @@ save_test_images: False
 w_adv: 1
 w_con: 50
 w_enc: 1
+w_grad: 0.1
 workers: 8
 -------------- End ----------------
